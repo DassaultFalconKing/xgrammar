@@ -120,6 +120,8 @@ if(XGRAMMAR_BUILD_CXX_TESTS)
 
   file(GLOB_RECURSE XGRAMMAR_TEST_SOURCES_PATH "${PROJECT_SOURCE_DIR}/tests/cpp/*.cc")
   enable_testing()
+  add_test(NAME xgrammar_config_cache
+           COMMAND ${CMAKE_COMMAND} -P ${PROJECT_SOURCE_DIR}/tests/cmake/test_config_cache.cmake)
 
   add_executable(xgrammar_test ${XGRAMMAR_TEST_SOURCES_PATH})
   target_include_directories(xgrammar_test PUBLIC ${PROJECT_SOURCE_DIR}/cpp)

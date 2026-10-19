@@ -1,0 +1,31 @@
+# Run with: cmake -P tests/cmake/test_config_cache.cmake
+cmake_minimum_required(VERSION 3.18)
+if(NOT DEFINED XGRAMMAR_ROOT)
+  get_filename_component(XGRAMMAR_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+endif()
+
+# Every non-default choice must survive inclusion by an embedding project.
+set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
+set(XGRAMMAR_BUILD_PYTHON_BINDINGS OFF CACHE BOOL "" FORCE)
+set(XGRAMMAR_ENABLE_COVERAGE ON CACHE BOOL "" FORCE)
+set(XGRAMMAR_BUILD_CXX_TESTS ON CACHE BOOL "" FORCE)
+set(XGRAMMAR_ENABLE_CPPTRACE ON CACHE BOOL "" FORCE)
+set(XGRAMMAR_ENABLE_INTERNAL_CHECK ON CACHE BOOL "" FORCE)
+include("${XGRAMMAR_ROOT}/cmake/config.cmake")
+if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug" OR XGRAMMAR_BUILD_PYTHON_BINDINGS
+   OR NOT XGRAMMAR_ENABLE_COVERAGE OR NOT XGRAMMAR_BUILD_CXX_TESTS
+   OR NOT XGRAMMAR_ENABLE_CPPTRACE OR NOT XGRAMMAR_ENABLE_INTERNAL_CHECK)
+  message(FATAL_ERROR "XGrammar config overrode consumer cache settings")
+endif()
+
+foreach(name XGRAMMAR_BUILD_PYTHON_BINDINGS XGRAMMAR_ENABLE_COVERAGE
+             XGRAMMAR_BUILD_CXX_TESTS XGRAMMAR_ENABLE_CPPTRACE XGRAMMAR_ENABLE_INTERNAL_CHECK)
+  unset(${name})
+  unset(${name} CACHE)
+endforeach()
+include("${XGRAMMAR_ROOT}/cmake/config.cmake")
+if(NOT XGRAMMAR_BUILD_PYTHON_BINDINGS OR XGRAMMAR_ENABLE_COVERAGE
+   OR XGRAMMAR_BUILD_CXX_TESTS OR XGRAMMAR_ENABLE_CPPTRACE OR XGRAMMAR_ENABLE_INTERNAL_CHECK)
+  message(FATAL_ERROR "XGrammar default settings changed")
+endif()
+message(STATUS "XGrammar consumer cache settings and standalone defaults preserved")
