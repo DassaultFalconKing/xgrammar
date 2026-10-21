@@ -4196,7 +4196,19 @@ int32_t XMLToolCallingConverter::GenerateObject(
 ) {
   nested_object_level_++;
   bool need_brace = nested_object_level_ > 1;
-  auto result = JSONSchemaConverter::GenerateObject(spec, rule_name, need_brace);
+  // XGrammar #802 / upstream PR #803: the unbraced root XML argument object
+  // has no separator or braces of its own. For a truly property-less object,
+  // the generic path emits whitespace* and lets a model spin indefinitely.
+  // Yield epsilon so the containing structural tag must advance to its end.
+  // Keep open objects and nested (braced) JSON objects on the generic path.
+  const bool cannot_contain_properties =
+      !need_brace &&
+      (spec.max_properties == 0 ||
+       (spec.properties.empty() && spec.pattern_properties.empty() && !spec.property_names &&
+        !spec.allow_additional_properties && !spec.allow_unevaluated_properties));
+  const auto result = cannot_contain_properties
+                          ? Empty()
+                          : JSONSchemaConverter::GenerateObject(spec, rule_name, need_brace);
   nested_object_level_--;
   return result;
 }
