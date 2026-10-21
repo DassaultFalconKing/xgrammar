@@ -248,6 +248,20 @@ def test_qwen_xml_no_argument_object_terminates_without_whitespace(schema):
         assert not _is_grammar_accept_string(grammar, value)
 
 
+def test_qwen_xml_required_does_not_use_empty_object_epsilon_schemas():
+    # Review residual R1: the #802 epsilon shortcut requires required.empty().
+    # Property-less schemas that still list required keys must still compile; the
+    # inherited undeclared-required empty acceptance remains a separate residual.
+    schema = {
+        "type": "object",
+        "properties": {},
+        "required": ["a"],
+        "additionalProperties": False,
+    }
+    grammar = xgr.Grammar.from_ebnf(_json_schema_to_ebnf(schema, json_format="qwen_xml"))
+    assert grammar is not None
+
+
 def test_qwen_xml_open_object_still_allows_parameter():
     for schema in (
         {"type": "object"},

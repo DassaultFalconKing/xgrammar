@@ -4201,8 +4201,10 @@ int32_t XMLToolCallingConverter::GenerateObject(
   // the generic path emits whitespace* and lets a model spin indefinitely.
   // Yield epsilon so the containing structural tag must advance to its end.
   // Keep open objects and nested (braced) JSON objects on the generic path.
+  // Do not epsilon when required/minProperties still demand keys: unset
+  // max_properties is -1, so `== 0` is an explicit closed bound, not a sentinel.
   const bool cannot_contain_properties =
-      !need_brace &&
+      !need_brace && spec.required.empty() && spec.min_properties <= 0 &&
       (spec.max_properties == 0 ||
        (spec.properties.empty() && spec.pattern_properties.empty() && !spec.property_names &&
         !spec.allow_additional_properties && !spec.allow_unevaluated_properties));
