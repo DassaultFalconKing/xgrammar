@@ -231,6 +231,52 @@ def test_basic_rules_separators_in_qwen_xml(value_schema, instance):
     assert not _is_grammar_accept_string(grammar, spaced)
 
 
+# Qwenmonster regression for XGrammar #802. The parameter zone of a tool
+# whose object cannot contain any key must be epsilon, not whitespace*.
+@pytest.mark.parametrize(
+    "schema",
+    [
+        {"type": "object", "properties": {}, "required": []},
+        {"type": "object", "properties": {}, "required": [], "additionalProperties": False},
+        {"type": "object", "properties": {"city": {"type": "string"}}, "maxProperties": 0},
+    ],
+)
+def test_qwen_xml_no_argument_object_terminates_without_whitespace(schema):
+    grammar = xgr.Grammar.from_ebnf(_json_schema_to_ebnf(schema, json_format="qwen_xml"))
+    assert _is_grammar_accept_string(grammar, "")
+    for value in (" ", "\t", "\n", "\t" * 16):
+        assert not _is_grammar_accept_string(grammar, value)
+
+
+def test_qwen_xml_open_object_still_allows_parameter():
+    for schema in (
+        {"type": "object"},
+        {"type": "object", "properties": {}, "additionalProperties": True},
+    ):
+        grammar = xgr.Grammar.from_ebnf(_json_schema_to_ebnf(schema, json_format="qwen_xml"))
+        assert _is_grammar_accept_string(grammar, "<parameter=city>Paris</parameter>")
+
+
+def test_qwen_xml_nested_empty_object_keeps_json_braces():
+    schema = {
+        "type": "object",
+        "properties": {
+            "config": {"type": "object", "properties": {}, "additionalProperties": False}
+        },
+        "required": ["config"],
+    }
+    grammar = xgr.Grammar.from_ebnf(_json_schema_to_ebnf(schema, json_format="qwen_xml"))
+    assert _is_grammar_accept_string(grammar, "<parameter=config>{}</parameter>")
+
+
+def test_plain_json_empty_object_braces_unchanged():
+    schema = {"type": "object", "properties": {}, "required": []}
+    grammar = xgr.Grammar.from_ebnf(_json_schema_to_ebnf(schema, json_format="json"))
+    assert _is_grammar_accept_string(grammar, "{}")
+    assert _is_grammar_accept_string(grammar, "{ \n\t}")
+    assert not _is_grammar_accept_string(grammar, "")
+
+
 schema__accepted_instances__rejected_instances__test_non_strict = [
     (
         {"type": "array", "prefixItems": [{"type": "integer"}, {"type": "integer"}]},
