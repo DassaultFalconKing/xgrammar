@@ -106,6 +106,7 @@ class SubGrammarAdderImpl : public GrammarMutator {
     }
     new_tag_dispatch.loop_after_dispatch = old_tag_dispatch.loop_after_dispatch;
     new_tag_dispatch.excludes = old_tag_dispatch.excludes;
+    new_tag_dispatch.lock_excluded_prefixes = old_tag_dispatch.lock_excluded_prefixes;
     return builder_->AddTagDispatch(new_tag_dispatch);
   }
 
@@ -1365,7 +1366,8 @@ class GrammarFSMBuilderImpl {
   static std::optional<FSMWithStartEnd> BuildTagDispatchFSM(
       const std::vector<std::pair<std::string, int>>& string_trigger_rules,
       bool loop_after_dispatch,
-      const std::vector<std::string>& excluded_strings
+      const std::vector<std::string>& excluded_strings,
+      bool lock_excluded_prefixes
   );
 
  private:
@@ -1927,7 +1929,8 @@ void GrammarFSMBuilderImpl::BuildTokenTagDispatch(
 std::optional<FSMWithStartEnd> GrammarFSMBuilderImpl::BuildTagDispatchFSM(
     const std::vector<std::pair<std::string, int>>& string_trigger_rules,
     bool loop_after_dispatch,
-    const std::vector<std::string>& excluded_strings
+    const std::vector<std::string>& excluded_strings,
+    bool lock_excluded_prefixes
 ) {
   std::vector<std::string> tag_names;
   tag_names.reserve(string_trigger_rules.size());
@@ -1935,7 +1938,9 @@ std::optional<FSMWithStartEnd> GrammarFSMBuilderImpl::BuildTagDispatchFSM(
     tag_names.push_back(tag_name);
   }
   std::vector<int> end_states;
-  auto trie_result = TrieFSMBuilder::Build(tag_names, excluded_strings, &end_states, true, true);
+  auto trie_result = TrieFSMBuilder::Build(
+      tag_names, excluded_strings, &end_states, true, true, lock_excluded_prefixes
+  );
   if (!trie_result.has_value()) {
     return std::nullopt;
   }
@@ -1973,7 +1978,10 @@ std::optional<FSMWithStartEnd> GrammarFSMBuilderImpl::TagDispatch(
   );
 
   return BuildTagDispatchFSM(
-      string_trigger_rules, tag_dispatch.loop_after_dispatch, tag_dispatch.excludes
+      string_trigger_rules,
+      tag_dispatch.loop_after_dispatch,
+      tag_dispatch.excludes,
+      tag_dispatch.lock_excluded_prefixes
   );
 }
 

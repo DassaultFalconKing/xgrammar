@@ -2064,11 +2064,13 @@ int32_t JSONSchemaConverter::ByteString(const std::string& value) {
 }
 
 int32_t JSONSchemaConverter::TagDispatch(
-    bool loop_after_dispatch, std::vector<std::string> excludes
+    bool loop_after_dispatch, std::vector<std::string> excludes, bool lock_excluded_prefixes
 ) {
-  return builder_.AddTagDispatch(
-      Grammar::Impl::TagDispatch{{}, loop_after_dispatch, std::move(excludes)}
-  );
+  Grammar::Impl::TagDispatch tag_dispatch;
+  tag_dispatch.loop_after_dispatch = loop_after_dispatch;
+  tag_dispatch.excludes = std::move(excludes);
+  tag_dispatch.lock_excluded_prefixes = lock_excluded_prefixes;
+  return builder_.AddTagDispatch(tag_dispatch);
 }
 
 int32_t JSONSchemaConverter::RuleRef(int32_t rule_id) {
@@ -3931,7 +3933,8 @@ void XMLToolCallingConverter::AddBasicRules() {
   // by the enclosing property rule, outside this body's exclusion scope.
   auto string_excludes = excludes_;
   string_excludes.push_back(xml_wrapper_.parameter_suffix);
-  builder_.UpdateRuleBody(kXMLString, TagDispatch(false, std::move(string_excludes)));
+  // Lock the end-marker prefix so "</parameter" cannot continue as "</parameter1>".
+  builder_.UpdateRuleBody(kXMLString, TagDispatch(false, std::move(string_excludes), true));
   AddCache(kStringCacheKey, builder_.GetRuleId(kXMLString));
 
   // Add XML any rule

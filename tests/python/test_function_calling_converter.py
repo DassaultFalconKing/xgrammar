@@ -102,7 +102,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<parameter=" xml_variable_name ">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>" ([ \n\r\t]* "<parameter=" xml_variable_name ">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -117,6 +117,28 @@ root ::=  [ \n\r\t]* (("<parameter=name>" xml_string "</parameter>" root_part_0)
         "required": ["name", "age"],
     }
     _check_qwen_grammar(schema, expected_grammar, input_str, accepted)
+
+
+# #650: a started end marker must complete "</parameter>", not drift into "</parameter1>".
+# HTML and shorter close tags stay accepted. Reasoning any_text is not this rule.
+test_string_end_marker_lock_input_str_accepted = (
+    ("<parameter=city>Shanghai</parameter>", True),
+    ("<parameter=city><div>x</div></parameter>", True),
+    ("<parameter=city>a</p>b</parameter>", True),
+    ("<parameter=city>1 < 2 & 3 > 0</parameter>", True),
+    ("<parameter=city>Shanghai</parameter1>", False),
+    ("<parameter=city>Shanghai</parameter_function>", False),
+    ("<parameter=city>Shanghai</parameterX>", False),
+    ("<parameter=city>Shanghai</parameter/>", False),
+)
+
+
+@pytest.mark.parametrize("input_str, accepted", test_string_end_marker_lock_input_str_accepted)
+def test_string_end_marker_lock(input_str: str, accepted: bool):
+    schema = {"type": "object", "properties": {"city": {"type": "string"}}, "required": ["city"]}
+    grammar = _json_schema_to_ebnf(schema, json_format="qwen_xml")
+    assert "lock_excluded_prefixes=true" in str(grammar)
+    check_grammar_with_instance(grammar, input_str, accepted)
 
 
 test_additional_properties_schema_input_str_accepted = (
@@ -145,7 +167,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<parameter=" xml_variable_name ">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>" ([ \n\r\t]* "<parameter=" xml_variable_name ">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -187,7 +209,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<parameter=" xml_variable_name ">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>" ([ \n\r\t]* "<parameter=" xml_variable_name ">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -233,7 +255,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<parameter=" xml_variable_name ">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>" ([ \n\r\t]* "<parameter=" xml_variable_name ">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -278,7 +300,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<parameter=" xml_variable_name ">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>" ([ \n\r\t]* "<parameter=" xml_variable_name ">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -327,7 +349,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<parameter=" xml_variable_name ">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>" ([ \n\r\t]* "<parameter=" xml_variable_name ">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -403,7 +425,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<parameter=" xml_variable_name ">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>" ([ \n\r\t]* "<parameter=" xml_variable_name ">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -454,7 +476,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<parameter=" xml_variable_name ">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>" ([ \n\r\t]* "<parameter=" xml_variable_name ">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -499,7 +521,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<parameter name=\"" xml_variable_name "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>" ([ \n\r\t]* "<parameter name=\"" xml_variable_name "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -542,7 +564,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<parameter name=\"" xml_variable_name "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>" ([ \n\r\t]* "<parameter name=\"" xml_variable_name "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -584,7 +606,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<parameter name=\"" xml_variable_name "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>" ([ \n\r\t]* "<parameter name=\"" xml_variable_name "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -632,7 +654,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<parameter name=\"" xml_variable_name "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>" ([ \n\r\t]* "<parameter name=\"" xml_variable_name "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -687,7 +709,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<parameter name=\"" xml_variable_name "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>" ([ \n\r\t]* "<parameter name=\"" xml_variable_name "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -742,7 +764,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<parameter name=\"" xml_variable_name "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>" ([ \n\r\t]* "<parameter name=\"" xml_variable_name "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -822,7 +844,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<parameter name=\"" xml_variable_name "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>" ([ \n\r\t]* "<parameter name=\"" xml_variable_name "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -881,7 +903,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<parameter name=\"" xml_variable_name "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>" ([ \n\r\t]* "<parameter name=\"" xml_variable_name "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -950,7 +972,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</｜DSML｜parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</｜DSML｜parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<｜DSML｜parameter name=\"" xml_variable_name "\" string=\"" ("true" | "false") "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</｜DSML｜parameter>" ([ \n\r\t]* "<｜DSML｜parameter name=\"" xml_variable_name "\" string=\"" ("true" | "false") "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</｜DSML｜parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -991,7 +1013,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</｜DSML｜parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</｜DSML｜parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<｜DSML｜parameter name=\"" xml_variable_name "\" string=\"" ("true" | "false") "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</｜DSML｜parameter>" ([ \n\r\t]* "<｜DSML｜parameter name=\"" xml_variable_name "\" string=\"" ("true" | "false") "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</｜DSML｜parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -1038,7 +1060,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</｜DSML｜parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</｜DSML｜parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<｜DSML｜parameter name=\"" xml_variable_name "\" string=\"" ("true" | "false") "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</｜DSML｜parameter>" ([ \n\r\t]* "<｜DSML｜parameter name=\"" xml_variable_name "\" string=\"" ("true" | "false") "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</｜DSML｜parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -1086,7 +1108,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</｜DSML｜parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</｜DSML｜parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<｜DSML｜parameter name=\"" xml_variable_name "\" string=\"" ("true" | "false") "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</｜DSML｜parameter>" ([ \n\r\t]* "<｜DSML｜parameter name=\"" xml_variable_name "\" string=\"" ("true" | "false") "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</｜DSML｜parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -1137,7 +1159,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</｜DSML｜parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</｜DSML｜parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<｜DSML｜parameter name=\"" xml_variable_name "\" string=\"" ("true" | "false") "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</｜DSML｜parameter>" ([ \n\r\t]* "<｜DSML｜parameter name=\"" xml_variable_name "\" string=\"" ("true" | "false") "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</｜DSML｜parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -1206,7 +1228,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</｜DSML｜parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</｜DSML｜parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<｜DSML｜parameter name=\"" xml_variable_name "\" string=\"" ("true" | "false") "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</｜DSML｜parameter>" ([ \n\r\t]* "<｜DSML｜parameter name=\"" xml_variable_name "\" string=\"" ("true" | "false") "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</｜DSML｜parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -1264,7 +1286,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</｜DSML｜parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</｜DSML｜parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<｜DSML｜parameter name=\"" xml_variable_name "\" string=\"" ("true" | "false") "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</｜DSML｜parameter>" ([ \n\r\t]* "<｜DSML｜parameter name=\"" xml_variable_name "\" string=\"" ("true" | "false") "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</｜DSML｜parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*
@@ -1322,7 +1344,7 @@ basic_boolean ::= "true" | "false"
 basic_null ::= "null"
 basic_array ::= (("[" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_any)* [ \n\r\t]* "]") | ("[" [ \n\r\t]* "]"))
 basic_object ::= ("{" [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any ([ \n\r\t]* "," [ \n\r\t]* basic_string [ \n\r\t]* ":" [ \n\r\t]* basic_any)* [ \n\r\t]* "}") | "{" [ \n\r\t]* "}"
-xml_string ::= TagDispatch(loop_after_dispatch=false,excludes=("</｜DSML｜parameter>"))
+xml_string ::= TagDispatch(loop_after_dispatch=false,lock_excluded_prefixes=true,excludes=("</｜DSML｜parameter>"))
 xml_any ::= xml_string | basic_array | basic_object
 xml_object ::= ( [ \n\r\t]* "<｜DSML｜parameter name=\"" xml_variable_name "\" string=\"" ("true" | "false") "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</｜DSML｜parameter>" ([ \n\r\t]* "<｜DSML｜parameter name=\"" xml_variable_name "\" string=\"" ("true" | "false") "\">" [ \n\r\t]* xml_any [ \n\r\t]* "</｜DSML｜parameter>")* [ \n\r\t]*) | [ \n\r\t]*
 xml_variable_name ::= [a-zA-Z_][a-zA-Z0-9_]*

@@ -103,6 +103,11 @@ class TrieFSMBuilder {
    * std::nullopt.
    * \param add_back_edges Whether to add back edges to the FSM. This complements the trie to an
    * Aho-Corasick automaton.
+   * \param lock_excluded_prefixes If true, the longest proper prefix state of each excluded
+   * pattern (the state after "</parameter" when the excluded pattern is "</parameter>") gets no
+   * failure transition back into ordinary content. It must complete the excluded pattern or
+   * restart on a real pattern prefix. Shorter prefixes keep their failure links, so "<div>" and
+   * "</p>" remain legal content. Default false preserves reasoning/any_text TagDispatch.
    * \return If success, the FSM with start and end states. Otherwise, std::nullopt.
    */
   static std::optional<FSMWithStartEnd> Build(
@@ -110,7 +115,8 @@ class TrieFSMBuilder {
       const std::vector<std::string>& excluded_patterns,
       std::vector<int32_t>* end_states = nullptr,
       bool allow_overlap = true,
-      bool add_back_edges = false
+      bool add_back_edges = false,
+      bool lock_excluded_prefixes = false
   );
 };
 

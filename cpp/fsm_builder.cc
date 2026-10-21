@@ -1623,13 +1623,15 @@ class TrieFSMBuilderImpl {
       const std::vector<std::string>& excluded_patterns,
       std::vector<int32_t>* end_states,
       bool allow_overlap,
-      bool add_back_edges
+      bool add_back_edges,
+      bool lock_excluded_prefixes
   );
   void AddBackEdges(
       FSM* fsm,
       int start,
       const std::unordered_set<int>& ends,
-      std::unordered_set<int32_t>* dead_states
+      std::unordered_set<int32_t>* dead_states,
+      const std::unordered_set<int>& locked_states
   );
 };
 
@@ -1638,11 +1640,14 @@ std::optional<FSMWithStartEnd> TrieFSMBuilderImpl::Build(
     const std::vector<std::string>& excluded_patterns,
     std::vector<int32_t>* end_states,
     bool allow_overlap,
-    bool add_back_edges
+    bool add_back_edges,
+    bool lock_excluded_prefixes
 ) {
   FSM fsm(1);
   int start = 0;
   std::unordered_set<int> ends;
+  // Longest proper prefix of each excluded pattern. Locked only when requested.
+  std::unordered_set<int> locked_states;
 
   if (end_states) {
     end_states->clear();
@@ -1686,6 +1691,7 @@ std::optional<FSMWithStartEnd> TrieFSMBuilderImpl::Build(
       }
 
       int current_state = 0;
+      int penultimate_state = start;
       for (const auto& ch : excluded_pattern) {
         int32_t ch_int32 = static_cast<int32_t>(static_cast<uint8_t>(ch));
         int next_state = fsm.GetNextState(current_state, ch_int32);
@@ -1693,6 +1699,7 @@ std::optional<FSMWithStartEnd> TrieFSMBuilderImpl::Build(
           next_state = fsm.AddState();
           fsm.AddEdge(current_state, next_state, ch_int32, ch_int32);
         }
+        penultimate_state = current_state;
         current_state = next_state;
         if (!allow_overlap && ends.count(current_state) > 0) {
           return std::nullopt;
@@ -1704,10 +1711,14 @@ std::optional<FSMWithStartEnd> TrieFSMBuilderImpl::Build(
 
       ends.insert(current_state);
       dead_state_set.insert(current_state);
+      // Never lock the start state: it must keep accepting ordinary content.
+      if (lock_excluded_prefixes && penultimate_state != start) {
+        locked_states.insert(penultimate_state);
+      }
     }
 
-    // Add back edges.
-    AddBackEdges(&fsm, start, ends, &dead_state_set);
+    // Add back edges. Locked prefixes cannot fall back into ordinary content.
+    AddBackEdges(&fsm, start, ends, &dead_state_set, locked_states);
 
     // Remove the edges to excluded end states.
     if (dead_state_set.size() != 0) {
@@ -1733,7 +1744,8 @@ void TrieFSMBuilderImpl::AddBackEdges(
     FSM* fsm,
     int start,
     const std::unordered_set<int>& ends,
-    std::unordered_set<int32_t>* dead_states
+    std::unordered_set<int32_t>* dead_states,
+    const std::unordered_set<int>& locked_states
 ) {
   // Build an Aho-Corasick automaton by adding back edges.
   // When matching on the trie fails at state u on byte b, the matcher must resume from
@@ -1773,7 +1785,7 @@ void TrieFSMBuilderImpl::AddBackEdges(
       delta[u][edge.min] = edge.target;
     }
   }
-  for (int u : bfs_order) {
+    for (int u : bfs_order) {
     // An explicit trie child can complete an excluded suffix without entering its
     // terminal state: with excludes {"abc", "xabcq"}, the state for "xabc" has
     // failure state "abc". It must be dead too, even if more trie edges remain.
@@ -1785,9 +1797,31 @@ void TrieFSMBuilderImpl::AddBackEdges(
       // Entries of deeper states are untouched so far, so a non-empty entry here is
       // exactly a trie child of u.
       int child = delta[u][byte];
-      int fallback = (u == start) ? start : delta[fail[u]][byte];
+      // A locked state leaves ordinary bytes as kNoNextState. A deeper state whose
+      // failure link lands there must keep walking the failure chain so fail[] never
+      // stores kNoNextState. Unlocked rows are complete, so this stops on the first link.
+      int fallback = start;
+      if (u != start) {
+        int failure_state = fail[u];
+        while (true) {
+          fallback = delta[failure_state][byte];
+          if (fallback != FSM::kNoNextState || failure_state == start) {
+            break;
+          }
+          failure_state = fail[failure_state];
+        }
+        if (fallback == FSM::kNoNextState) {
+          fallback = start;
+        }
+      }
       if (child == FSM::kNoNextState) {
-        delta[u][byte] = fallback;
+        // A locked prefix (for example the state after "</parameter") may restart a real
+        // pattern, but a fallback to the start state is ordinary content and would accept
+        // a malformed end marker such as "</parameter1>".
+        bool reject_ordinary_content = locked_states.count(u) > 0 && fallback == start;
+        if (!reject_ordinary_content) {
+          delta[u][byte] = fallback;
+        }
       } else {
         fail[child] = fallback;
       }
@@ -1808,7 +1842,9 @@ void TrieFSMBuilderImpl::AddBackEdges(
       while (range_end + 1 < 256 && row[range_end + 1] == target) {
         range_end++;
       }
-      new_edges.push_back(FSMEdge(byte, range_end, target));
+      if (target != FSM::kNoNextState) {
+        new_edges.push_back(FSMEdge(byte, range_end, target));
+      }
       byte = range_end + 1;
     }
     fsm->GetEdges(u) = std::move(new_edges);
@@ -1820,10 +1856,11 @@ std::optional<FSMWithStartEnd> TrieFSMBuilder::Build(
     const std::vector<std::string>& exclude_patterns,
     std::vector<int32_t>* end_states,
     bool allow_overlap,
-    bool add_back_edges
+    bool add_back_edges,
+    bool lock_excluded_prefixes
 ) {
   return TrieFSMBuilderImpl().Build(
-      patterns, exclude_patterns, end_states, allow_overlap, add_back_edges
+      patterns, exclude_patterns, end_states, allow_overlap, add_back_edges, lock_excluded_prefixes
   );
 }
 

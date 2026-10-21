@@ -316,7 +316,13 @@ class Grammar::Impl {
     bool loop_after_dispatch;
     /*! \brief The strings that are excluded by the tag dispatch. */
     std::vector<std::string> excludes;
-    static const int kTagDispatchExtraParameter = 2;
+    /*!
+     * \brief If true, the longest proper prefix of an excluded string must be completed into that
+     * string instead of falling back to ordinary content. Defaults to false so reasoning and
+     * any_text TagDispatch keep the previous behavior. XML parameter values set it true.
+     */
+    bool lock_excluded_prefixes = false;
+    static const int kTagDispatchExtraParameter = 3;
   };
 
   /*! \brief Get the tag dispatch from the grammar expr. */
@@ -339,9 +345,12 @@ class Grammar::Impl {
     result.loop_after_dispatch = static_cast<bool>(
         grammar_expr[grammar_expr.size() - TagDispatch::kTagDispatchExtraParameter]
     );
+    result.lock_excluded_prefixes = static_cast<bool>(
+        grammar_expr[grammar_expr.size() - TagDispatch::kTagDispatchExtraParameter + 1]
+    );
 
     auto exclude_str_expr = GetGrammarExpr(
-        grammar_expr[grammar_expr.size() - TagDispatch::kTagDispatchExtraParameter + 1]
+        grammar_expr[grammar_expr.size() - TagDispatch::kTagDispatchExtraParameter + 2]
     );
     XGRAMMAR_DCHECK(exclude_str_expr.type == GrammarExprType::kChoices);
     result.excludes.reserve(exclude_str_expr.size());

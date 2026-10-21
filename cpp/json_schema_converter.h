@@ -424,7 +424,11 @@ class JSONSchemaConverter {
   /*! \brief An expression that matches nothing, for alternatives ruled out by excludes_. */
   int32_t Unsatisfiable();
   int32_t ByteString(const std::string& value);
-  int32_t TagDispatch(bool loop_after_dispatch, std::vector<std::string> excludes);
+  int32_t TagDispatch(
+      bool loop_after_dispatch,
+      std::vector<std::string> excludes,
+      bool lock_excluded_prefixes = false
+  );
   int32_t RuleRef(int32_t rule_id);
   int32_t RuleRef(const std::string& rule_name);
   int32_t Sequence(const std::vector<int32_t>& elements);

@@ -234,7 +234,7 @@ std::optional<std::string> Grammar::Impl::Validate() const {
         ok = std::all_of(expr.begin(), expr.end(), expr_ok);
         break;
       case GrammarExprType::kTagDispatch: {
-        // [tag_expr0, rule_id0, ..., loop_after_dispatch, excluded_str_expr_id]
+        // [tag_expr0, rule_id0, ..., loop_after_dispatch, lock_excluded_prefixes, excluded_str_expr_id]
         const int64_t extra = TagDispatch::kTagDispatchExtraParameter;
         ok = size >= extra && (size - extra) % 2 == 0;
         for (int64_t i = 0; ok && i < size - extra; i += 2) {
